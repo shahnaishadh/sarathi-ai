@@ -1,0 +1,1 @@
+Place yolov8n.onnx in this directory before building the application.
