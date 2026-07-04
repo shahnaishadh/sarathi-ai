@@ -2,6 +2,7 @@ package com.pathhelper.ai.navigation.coordinator
 
 import android.content.Context
 import android.location.Location
+import android.util.Log
 import com.pathhelper.ai.navigation.common.target.NavigationTarget
 import com.pathhelper.ai.navigation.common.target.BuildingTarget
 import com.pathhelper.ai.navigation.common.target.RoomTarget
@@ -77,7 +78,8 @@ class NavigationCoordinator(
         worldModel: WorldModel,
         navigationContext: NavigationContext,
         routeMemory: RouteMemory,
-        routePlan: RoutePlan
+        routePlan: RoutePlan,
+        frameId: Long = 0L
     ) {
         val target = activeTarget ?: return
 
@@ -155,5 +157,12 @@ class NavigationCoordinator(
                 hapticCommand = HapticCommand(com.pathhelper.ai.haptics.HapticPattern.RIGHT, com.pathhelper.ai.navigation.GuidanceAction.KEEP_CENTER, System.currentTimeMillis(), 50)
             }
         }
+        Log.i("SARTHI_DEBUG", """
+            [NAVIGATION_COORDINATOR]
+            time=${System.currentTimeMillis()}
+            frameId=$frameId
+            activeTarget=${activeTarget?.javaClass?.simpleName ?: "null"}
+            hybridMode=${hybridState.currentMode}
+        """.trimIndent())
     }
 }

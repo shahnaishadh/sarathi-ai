@@ -2,10 +2,13 @@ package com.pathhelper.ai.voice
 
 import android.content.Context
 import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
 import android.util.Log
 import com.pathhelper.ai.BuildConfig
 import com.pathhelper.ai.navigation.GuidanceAction
 import java.util.Locale
+import java.util.concurrent.ConcurrentHashMap
+
 /**
 * Coordinates Text To Speech Manager operations and logic.
 *
@@ -17,6 +20,7 @@ import java.util.Locale
 class TextToSpeechManager(private val context: Context) : TextToSpeech.OnInitListener {
     private var tts: TextToSpeech? = null
     private var isInitialized = false
+    private val activeCommands = ConcurrentHashMap<String, SpeechCommand>()
 
     init {
         tts = TextToSpeech(context, this)
@@ -31,6 +35,23 @@ class TextToSpeechManager(private val context: Context) : TextToSpeech.OnInitLis
                 } else {
                     t.setSpeechRate(1.2f) // Optimized for assistive responsiveness
                     isInitialized = true
+
+                    t.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+                        override fun onStart(utteranceId: String) {
+                            val command = activeCommands[utteranceId]
+                            Log.i("SARTHI_ANNOUNCEMENT", "time=${System.currentTimeMillis()} guidanceAction=${command?.action ?: "null"} announcementText=\"${command?.text ?: ""}\" speechStarted=true speechCompleted=false")
+                        }
+
+                        override fun onDone(utteranceId: String) {
+                            val command = activeCommands.remove(utteranceId)
+                            Log.i("SARTHI_ANNOUNCEMENT", "time=${System.currentTimeMillis()} guidanceAction=${command?.action ?: "null"} announcementText=\"${command?.text ?: ""}\" speechStarted=false speechCompleted=true")
+                        }
+
+                        override fun onError(utteranceId: String) {
+                            val command = activeCommands.remove(utteranceId)
+                            Log.i("SARTHI_ANNOUNCEMENT", "time=${System.currentTimeMillis()} guidanceAction=${command?.action ?: "null"} announcementText=\"${command?.text ?: ""}\" speechStarted=false speechCompleted=true")
+                        }
+                    })
                 }
             }
         } else {
@@ -46,12 +67,8 @@ class TextToSpeechManager(private val context: Context) : TextToSpeech.OnInitLis
      * This ensures that safety-critical navigation instructions interrupt longer
      * informational descriptions immediately.
      */
-    fun speak(command: SpeechCommand) {
+    fun speak(command: SpeechCommand, frameId: Long = 0L) {
         if (!isInitialized) return
-
-        if (BuildConfig.DEBUG) {
-            Log.d("TTS_QUEUE", "text=${command.text} action=${command.action} priority=${command.priority}")
-        }
 
         val queueMode = if (command.priority >= 60 || command.action == GuidanceAction.STOP) {
             TextToSpeech.QUEUE_FLUSH
@@ -59,7 +76,22 @@ class TextToSpeechManager(private val context: Context) : TextToSpeech.OnInitLis
             TextToSpeech.QUEUE_ADD
         }
 
-        tts?.speak(command.text, queueMode, null, command.timestamp.toString())
+        Log.i("SARTHI_DEBUG", """
+            [TTS_MANAGER]
+            time=${System.currentTimeMillis()}
+            frameId=$frameId
+            action=${command.action}
+            text="${command.text}"
+            queueMode=${if (queueMode == TextToSpeech.QUEUE_FLUSH) "QUEUE_FLUSH" else "QUEUE_ADD"}
+        """.trimIndent())
+
+        val utteranceId = command.timestamp.toString()
+        activeCommands[utteranceId] = command
+        tts?.speak(command.text, queueMode, null, utteranceId)
+    }
+
+    fun isSpeaking(): Boolean {
+        return isInitialized && tts?.isSpeaking == true
     }
 
     fun shutdown() {

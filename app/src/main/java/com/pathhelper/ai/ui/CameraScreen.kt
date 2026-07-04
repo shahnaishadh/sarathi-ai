@@ -42,6 +42,7 @@ import com.pathhelper.ai.camera.BitmapMetadata
 import com.pathhelper.ai.camera.CameraPreview
 import com.pathhelper.ai.camera.FrameAnalyzer
 import com.pathhelper.ai.camera.FrameMetadata
+import com.pathhelper.ai.camera.CameraController
 import com.pathhelper.ai.onnx.DetectionMetadata
 import com.pathhelper.ai.onnx.DetectionRenderData
 import com.pathhelper.ai.onnx.InferenceMetadata
@@ -106,6 +107,7 @@ import com.pathhelper.ai.localization.pose.LocalizationConfidence
 import com.pathhelper.ai.localization.pose.LocalizationMetadata
 import com.pathhelper.ai.localization.pose.LocalizationState
 import android.hardware.camera2.CameraManager
+import android.util.Log
 import androidx.compose.runtime.collectAsState
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.pathhelper.ai.guidance.announcement.AnnouncementManager
@@ -325,17 +327,23 @@ fun CameraScreen() {
     )
     val validationMetrics by validationViewModel.metrics.collectAsState()
 
+    var lastFrameIdProcessed by remember { mutableStateOf(0L) }
+
     // ── Announcement Manager (wraps TTS with suppression logic) ────────────
     val announcementManager = remember {
-        AnnouncementManager { text -> ttsManager.speak(
+        AnnouncementManager { text, action, rawPriority -> ttsManager.speak(
             com.pathhelper.ai.voice.SpeechCommand(
                 text = text,
-                action = GuidanceAction.KEEP_CENTER,
-                priority = 50,
+                action = action,
+                priority = rawPriority,
                 timestamp = System.currentTimeMillis()
-            )
+            ),
+            frameId = lastFrameIdProcessed
         )}
     }
+
+    // ── Camera Controller ──────────────────────────────────────────────────
+    val cameraController = remember { CameraController(context) }
 
     // ── Torch Controller ───────────────────────────────────────────────────
     val torchController = remember {
@@ -343,7 +351,7 @@ fun CameraScreen() {
             as CameraManager
         val cameraId = try { cameraManager.cameraIdList.firstOrNull() ?: "0" }
                        catch (e: Exception) { "0" }
-        TorchController(
+        val tc = TorchController(
             cameraManager = cameraManager,
             cameraId = cameraId,
             speak = { text ->
@@ -356,8 +364,15 @@ fun CameraScreen() {
             },
             onStateChanged = { state, brightness, torch ->
                 validationViewModel.updateLighting(state.name, brightness, torch)
+            },
+            toggleTorch = { enable ->
+                cameraController.setFlash(enable)
             }
         )
+        cameraController.setOnTorchStateChangedListener { isOn ->
+            tc.updateTorchStateFromHardware(isOn)
+        }
+        tc
     }
 
     val frameAnalyzer = remember {
@@ -366,6 +381,16 @@ fun CameraScreen() {
             analysisStats = stats
             frameMetadata = metadata
             bitmapMetadata = bMeta
+            lastFrameIdProcessed = stats.framesReceived
+
+            Log.i("SARTHI_DEBUG", """
+                [CAMERA_SCREEN]
+                time=${System.currentTimeMillis()}
+                frameId=${stats.framesReceived}
+                action=${decision.action}
+                speechCommandText=${speechCommand?.text ?: "null"}
+                hapticCommandPattern=${hapticCommand?.pattern?.name ?: "null"}
+            """.trimIndent())
             
             // Update Torch Controller with current luminance
             torchController.onFrame(bMeta.luminance, locConfidence.poseConfidence)
@@ -390,13 +415,25 @@ fun CameraScreen() {
             guidanceMetadata = decisionStats
 
             speechCommand?.let { cmd ->
+                Log.i("SARTHI_GUIDANCE", "action=${cmd.action} text=\"${cmd.text}\" timestamp=${System.currentTimeMillis()}")
                 val priority = when {
                     cmd.action == GuidanceAction.STOP -> AnnouncementPriority.CRITICAL
                     cmd.priority >= 80 -> AnnouncementPriority.CRITICAL
                     cmd.priority >= 50 -> AnnouncementPriority.WARNING
                     else -> AnnouncementPriority.INFO
                 }
-                announcementManager.announce(cmd.text, priority, slamPose.positionX, slamPose.positionY)
+                announcementManager.announce(
+                    text = cmd.text, 
+                    priority = priority, 
+                    currentPosX = slamPose.positionX, 
+                    currentPosY = slamPose.positionY,
+                    frameId = stats.framesReceived,
+                    trackerId = decision.highestThreatId,
+                    action = decision.action,
+                    distance = decision.highestThreatDistance,
+                    threatLevel = decision.highestThreatLevel,
+                    rawPriority = cmd.priority
+                )
                 lastCommand = cmd.text
             }
             voiceMetadata = voiceStats
@@ -537,6 +574,8 @@ fun CameraScreen() {
                 )
             }
             validationViewModel.onFrameProcessed()
+        }.apply {
+            isSpeakingCallback = { ttsManager.isSpeaking() }
         }
     }
 
@@ -575,6 +614,7 @@ fun CameraScreen() {
     DisposableEffect(Unit) {
         onDispose {
             torchController.release()
+            cameraController.stopCamera()
             modelLoader.close()
             ttsManager.shutdown()
             hapticManager.shutdown()
@@ -598,6 +638,7 @@ fun CameraScreen() {
             if (hasCameraPermission) {
                 CameraPreview(
                     modifier = Modifier.fillMaxSize(),
+                    cameraController = cameraController,
                     analyzer = frameAnalyzer,
                     onStatusChanged = { status ->
                         cameraStatus = status

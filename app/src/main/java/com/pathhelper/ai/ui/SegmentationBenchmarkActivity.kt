@@ -18,6 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.pathhelper.ai.camera.CameraPreview
+import com.pathhelper.ai.camera.CameraController
 import com.pathhelper.ai.perception.SegmentationAnalyzer
 import com.pathhelper.ai.perception.SegmentationEngine
 import com.pathhelper.ai.perception.SegmentationResult
@@ -47,6 +48,13 @@ class SegmentationBenchmarkActivity : ComponentActivity() {
 fun SegmentationBenchmarkScreen() {
     val context = LocalContext.current
     val segmentationEngine = remember { SegmentationEngine(context) }
+    val cameraController = remember { CameraController(context) }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            cameraController.stopCamera()
+        }
+    }
     
     var lastResult by remember { mutableStateOf<SegmentationResult?>(null) }
     var avgFps by remember { mutableStateOf(0.0) }
@@ -72,6 +80,7 @@ fun SegmentationBenchmarkScreen() {
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
             CameraPreview(
                 modifier = Modifier.fillMaxSize(),
+                cameraController = cameraController,
                 analyzer = analyzer,
                 onStatusChanged = {},
                 onError = {}

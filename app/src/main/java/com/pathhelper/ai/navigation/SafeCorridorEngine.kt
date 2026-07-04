@@ -102,6 +102,7 @@ class SafeCorridorEngine {
                 track.distanceMeters < 3.5f && max(trackLeft, zStart) < min(trackRight, zEnd)
             }
 
+            var maxGapWidth = zEnd - zStart
             if (closeTracksInZone.isNotEmpty()) {
                 val intervals = closeTracksInZone.map { track ->
                     val trackLeft = (track.centerX - (track.width / 2)) / 640f
@@ -120,7 +121,7 @@ class SafeCorridorEngine {
                 }
 
                 var currentStart = zStart
-                var maxGapWidth = 0f
+                maxGapWidth = 0f
                 for (blocked in merged) {
                     if (blocked.first > currentStart) {
                         val gap = blocked.first - currentStart
@@ -144,6 +145,7 @@ class SafeCorridorEngine {
                     zoneScores[zone] = max(70f, zoneScores[zone] ?: 0f)
                 }
             }
+            Log.i("SARTHI_CORRIDOR", "gapWidth=$maxGapWidth zoneScore=${zoneScores[zone]} selectedPath=$zone")
         }
 
         val corridors = zoneScores.map { (zone, score) ->

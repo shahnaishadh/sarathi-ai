@@ -120,8 +120,10 @@ class GpsNavigationEngine {
         while (diff > 180f) diff -= 360f
 
         return when {
-            diff < -30f -> "Turn left"
-            diff > 30f -> "Turn right"
+            diff < -30f -> "Sharp left"
+            diff > 30f -> "Sharp right"
+            diff < -5f -> "Turn slight left"
+            diff > 5f -> "Turn slight right"
             else -> "Go straight"
         }
     }

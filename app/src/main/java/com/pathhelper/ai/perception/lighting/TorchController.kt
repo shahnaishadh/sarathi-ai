@@ -1,4 +1,4 @@
-﻿package com.pathhelper.ai.perception.lighting
+package com.pathhelper.ai.perception.lighting
 
 import android.hardware.camera2.CameraAccessException
 import android.hardware.camera2.CameraManager
@@ -33,7 +33,8 @@ class TorchController(
     private val cameraManager: CameraManager,
     private val cameraId: String,
     private val speak: (String) -> Unit,
-    private val onStateChanged: ((LowLightState, Float, Boolean) -> Unit)? = null
+    private val onStateChanged: ((LowLightState, Float, Boolean) -> Unit)? = null,
+    private val toggleTorch: ((Boolean) -> Unit)? = null
 ) {
 
     companion
@@ -58,9 +59,11 @@ object {
         private set
 
     /** Whether the torch is currently on. */
+    @Volatile
     var torchOn: Boolean = false
         private set
 
+    @Volatile
     private var darkFrameCount = 0
     private var lastVoicePromptMs = 0L
     private var recoveryJob: Job? = null
@@ -74,6 +77,7 @@ object {
     fun onFrame(score: Float, localizationConf: Float = 1f) {
         brightnessScore = score
         currentState = LowLightState.fromScore(score)
+        Log.i("SARTHI_LIGHTING", "time=${System.currentTimeMillis()} brightness=$score threshold=15.0 isDark=${currentState == LowLightState.DARK}")
         onStateChanged?.invoke(currentState, score, torchOn)
 
         when (currentState) {
@@ -106,6 +110,15 @@ object {
         if (torchOn) disableTorch()
     }
 
+    fun updateTorchStateFromHardware(isOn: Boolean) {
+        this.torchOn = isOn
+        if (isOn) {
+            darkFrameCount = DARK_FRAMES_REQUIRED
+        } else {
+            darkFrameCount = 0
+        }
+    }
+
     // ─── Private ──────────────────────────────────────────────────────────────
 
     private fun enableTorch() {
@@ -117,12 +130,23 @@ object {
     }
 
     private fun setTorch(enable: Boolean) {
-        try {
-            cameraManager.setTorchMode(cameraId, enable)
-            torchOn = enable
-            if (BuildConfig.DEBUG) Log.d(TAG, "Torch ${if (enable) "ON" else "OFF"}")
-        } catch (e: CameraAccessException) {
-            Log.e(TAG, "Failed to set torch mode: ${e.localizedMessage}")
+        Log.i("SARTHI_TORCH", "time=${System.currentTimeMillis()} requestedState=$enable actualState=$enable")
+        if (toggleTorch != null) {
+            try {
+                toggleTorch.invoke(enable)
+                torchOn = enable
+                if (BuildConfig.DEBUG) Log.d(TAG, "Torch (via toggleTorch) ${if (enable) "ON" else "OFF"}")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to set torch mode via toggleTorch: ${e.localizedMessage}")
+            }
+        } else {
+            try {
+                cameraManager.setTorchMode(cameraId, enable)
+                torchOn = enable
+                if (BuildConfig.DEBUG) Log.d(TAG, "Torch ${if (enable) "ON" else "OFF"}")
+            } catch (e: CameraAccessException) {
+                Log.e(TAG, "Failed to set torch mode: ${e.localizedMessage}")
+            }
         }
     }
 

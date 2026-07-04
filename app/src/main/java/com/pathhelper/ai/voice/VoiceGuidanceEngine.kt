@@ -1,6 +1,7 @@
 package com.pathhelper.ai.voice
 
 import android.os.SystemClock
+import android.util.Log
 import com.pathhelper.ai.navigation.GuidanceAction
 import com.pathhelper.ai.navigation.GuidanceDecision
 import com.pathhelper.ai.navigation.HorizontalZone
@@ -58,6 +59,12 @@ class VoiceGuidanceEngine {
     private var welcomeStartedAt = 0L
     private val WELCOME_HOLD_DURATION = 8000L // 8 seconds for the full welcome sequence
 
+    private var lastPoseX = 0f
+    private var lastPoseY = 0f
+    private var stationaryStartTime: Long = 0L
+    private var lastInactivityNotificationTime: Long = 0L
+    private var isFirstPose = true
+
     /**
      * Manages announcement delivery, routing state changes, and obstacle threat levels.
      * Evaluates active system decisions, navigation context, and route updates to structure
@@ -69,12 +76,77 @@ class VoiceGuidanceEngine {
         navigationContext: NavigationContext,
         routeEvents: List<Pair<RouteLandmark, RouteEvent>>,
         navigationState: LandmarkNavigationState,
-        hybridState: HybridNavigationState? = null
+        hybridState: HybridNavigationState? = null,
+        frameId: Long = 0L,
+        isSpeaking: Boolean = false,
+        poseX: Float = 0f,
+        poseY: Float = 0f
+    ): Pair<SpeechCommand?, VoiceMetadata> {
+        val result = processInternal(decision, memoryEvents, navigationContext, routeEvents, navigationState, hybridState, isSpeaking, poseX, poseY)
+        val cmd = result.first
+        Log.i("SARTHI_DEBUG", """
+            [VOICE_GUIDANCE]
+            time=${System.currentTimeMillis()}
+            frameId=$frameId
+            action=${decision.action}
+            spokenText=${cmd?.text?.let { "\"$it\"" } ?: "null"}
+            suppressed=${cmd == null}
+        """.trimIndent())
+        return result
+    }
+
+    private fun processInternal(
+        decision: GuidanceDecision,
+        memoryEvents: List<Pair<MemoryObservation, MemoryEvent>>,
+        navigationContext: NavigationContext,
+        routeEvents: List<Pair<RouteLandmark, RouteEvent>>,
+        navigationState: LandmarkNavigationState,
+        hybridState: HybridNavigationState?,
+        isSpeaking: Boolean = false,
+        poseX: Float = 0f,
+        poseY: Float = 0f
     ): Pair<SpeechCommand?, VoiceMetadata> {
         val startTime = SystemClock.elapsedRealtime()
         val currentTime = SystemClock.elapsedRealtime()
 
+        if (isSpeaking) {
+            val duration = SystemClock.elapsedRealtime() - startTime
+            return Pair(null, VoiceMetadata(generatedCount, suppressedCount + 1, duration, true))
+        }
+
         try {
+            // Track active threat state
+            Log.i("SARTHI_THREAT_STATE", "trackerId=${decision.highestThreatId ?: "null"} distance=${decision.highestThreatDistance ?: "null"} threatLevel=${decision.highestThreatLevel ?: "null"}")
+
+            // Inactivity Tracking
+            if (isFirstPose) {
+                lastPoseX = poseX
+                lastPoseY = poseY
+                stationaryStartTime = currentTime
+                isFirstPose = false
+            }
+
+            val distanceMoved = kotlin.math.sqrt(
+                (poseX - lastPoseX) * (poseX - lastPoseX) +
+                (poseY - lastPoseY) * (poseY - lastPoseY)
+            )
+
+            if (distanceMoved > 0.3f) {
+                stationaryStartTime = currentTime
+                lastPoseX = poseX
+                lastPoseY = poseY
+            }
+
+            val timeStationary = currentTime - stationaryStartTime
+            var triggerNotification = false
+
+            if (timeStationary >= 15000L && (currentTime - lastInactivityNotificationTime >= 45000L)) {
+                triggerNotification = true
+                lastInactivityNotificationTime = currentTime
+            }
+
+            Log.i("SARTHI_INACTIVITY", "timeStationary=$timeStationary notificationTriggered=$triggerNotification")
+
             val obstaclePrefix = if (decision.highestThreatClassName != null) {
                 val distance = decision.highestThreatDistance
                 if (distance != null) {
@@ -102,22 +174,33 @@ class VoiceGuidanceEngine {
                 val shouldSpeak = isStopEntry || (timeSinceLastStop > 10000L)
 
                 if (!shouldSpeak) {
+                    Log.i("SARTHI_SUPPRESSION", "reason=SUPPRESSED_STOP_COOLDOWN")
                     val duration = SystemClock.elapsedRealtime() - startTime
                     return Pair(null, VoiceMetadata(generatedCount, suppressedCount + 1, duration, true))
                 }
 
                 val obstacleName = decision.highestThreatClassName ?: "Obstacle"
+                val directionAdvice = decision.secondaryReason ?: ""
+
                 val stopText = if (isStopEntry) {
                     val dist = decision.highestThreatDistance
                     if (dist != null && dist < 1.0f) {
-                        "$obstacleName very close ahead."
+                        val base = "$obstacleName very close ahead."
+                        if (directionAdvice.isNotEmpty()) "$base $directionAdvice" else base
                     } else if (obstaclePrefix != null) {
-                        "$obstaclePrefix Stop."
+                        if (directionAdvice.isNotEmpty()) "$obstaclePrefix $directionAdvice" else "$obstaclePrefix Stop."
                     } else {
-                        "$obstacleName ahead. Stop."
+                        val base = "$obstacleName ahead. Stop."
+                        if (directionAdvice.isNotEmpty()) "$base $directionAdvice" else base
                     }
                 } else {
-                    "$obstacleName still ahead."
+                    val base = if (decision.highestThreatDistance != null) {
+                        val roundedDist = kotlin.math.round(decision.highestThreatDistance).toInt()
+                        "$obstacleName ahead about $roundedDist meters."
+                    } else {
+                        "$obstacleName still ahead."
+                    }
+                    if (directionAdvice.isNotEmpty()) "$base $directionAdvice" else "$base Stop."
                 }
                 
                 generatedCount++
@@ -135,6 +218,8 @@ class VoiceGuidanceEngine {
                     priority = 100, 
                     timestamp = currentTime
                 )
+
+                Log.i("SARTHI_VOICE_GUIDANCE", "action=${command.action} timestamp=${System.currentTimeMillis()}")
 
                 val duration = SystemClock.elapsedRealtime() - startTime
                 return Pair(command, VoiceMetadata(generatedCount, suppressedCount, duration, true))
@@ -158,6 +243,8 @@ class VoiceGuidanceEngine {
                 lastSpokenText = welcomeText
                 lastSpokenTimestamp = currentTime
                 
+                Log.i("SARTHI_STARTUP", "time=${System.currentTimeMillis()} startupComplete=true")
+                
                 val command = SpeechCommand(
                     text = welcomeText,
                     action = GuidanceAction.KEEP_CENTER,
@@ -165,6 +252,8 @@ class VoiceGuidanceEngine {
                     timestamp = currentTime
                 )
                 
+                Log.i("SARTHI_VOICE_GUIDANCE", "action=${command.action} timestamp=${System.currentTimeMillis()}")
+
                 val duration = SystemClock.elapsedRealtime() - startTime
                 return Pair(command, VoiceMetadata(generatedCount, suppressedCount, duration, true))
             }
@@ -190,27 +279,47 @@ class VoiceGuidanceEngine {
                 }
             }
 
+            // Inactivity Announcement
+            if (triggerNotification) {
+                val text = "Looks like you are standing in the same position."
+                generatedCount++
+                lastSpokenAction = GuidanceAction.KEEP_CENTER
+                lastSpokenText = text
+                lastSpokenTimestamp = currentTime
+
+                val command = SpeechCommand(
+                    text = text,
+                    action = GuidanceAction.KEEP_CENTER,
+                    priority = 50,
+                    timestamp = currentTime
+                )
+
+                Log.i("SARTHI_VOICE_GUIDANCE", "action=${command.action} timestamp=${System.currentTimeMillis()}")
+                val duration = SystemClock.elapsedRealtime() - startTime
+                return Pair(command, VoiceMetadata(generatedCount, suppressedCount, duration, true))
+            }
+
             // =====================================================
             // Local Guidance Merging (Obstacle + Direction)
             // =====================================================
 
             val guidanceText = when (decision.action) {
-                GuidanceAction.MOVE_LEFT -> "Move left"
-                GuidanceAction.MOVE_SLIGHTLY_LEFT -> "Move slightly left"
+                GuidanceAction.MOVE_LEFT -> "Turn slight left"
+                GuidanceAction.MOVE_SLIGHTLY_LEFT -> "Turn slight left"
                 GuidanceAction.MOVE_SHARP_LEFT -> "Sharp left"
-                GuidanceAction.MOVE_RIGHT -> "Move right"
-                GuidanceAction.MOVE_SLIGHTLY_RIGHT -> "Move slightly right"
+                GuidanceAction.MOVE_RIGHT -> "Turn slight right"
+                GuidanceAction.MOVE_SLIGHTLY_RIGHT -> "Turn slight right"
                 GuidanceAction.MOVE_SHARP_RIGHT -> "Sharp right"
                 GuidanceAction.KEEP_CENTER -> "Keep center"
                 GuidanceAction.WAIT -> "Path blocked. Please wait"
                 else -> ""
             }
 
-            var text = if (obstaclePrefix != null) {
-                if (decision.action == GuidanceAction.KEEP_CENTER || (decision.action == GuidanceAction.STOP && decision.highestThreatDistance != null && decision.highestThreatDistance < 1.0f)) {
-                    obstaclePrefix
+            var text = if (decision.action == GuidanceAction.KEEP_CENTER) {
+                if (lastSpokenAction != GuidanceAction.KEEP_CENTER) {
+                    "Keep center"
                 } else {
-                    "$obstaclePrefix $guidanceText"
+                    ""
                 }
             } else {
                 guidanceText
@@ -265,6 +374,15 @@ class VoiceGuidanceEngine {
             }
 
             if (shouldSuppress) {
+                val reason = when {
+                    decision.action == GuidanceAction.STOP -> "SUPPRESSED_STOP_COOLDOWN"
+                    isSameThreat && isSameAction && isSameLevel && isDistanceUnchanged -> "SUPPRESSED_SAME_THREAT"
+                    isSameAction -> "SUPPRESSED_SAME_GUIDANCE"
+                    isDistanceUnchanged -> "SUPPRESSED_DISTANCE_UNCHANGED"
+                    else -> "SUPPRESSED_STATE_UNCHANGED"
+                }
+                Log.i("SARTHI_SUPPRESSION", "reason=$reason")
+
                 suppressedCount++
                 val duration = SystemClock.elapsedRealtime() - startTime
                 return Pair(null, VoiceMetadata(generatedCount, suppressedCount, duration, true))
@@ -284,6 +402,8 @@ class VoiceGuidanceEngine {
                 priority = priority,
                 timestamp = currentTime
             )
+
+            Log.i("SARTHI_VOICE_GUIDANCE", "action=${command.action} timestamp=${System.currentTimeMillis()}")
 
             val duration = SystemClock.elapsedRealtime() - startTime
             return Pair(command, VoiceMetadata(generatedCount, suppressedCount, duration, true))

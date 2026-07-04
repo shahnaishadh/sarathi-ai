@@ -5,6 +5,10 @@ import androidx.camera.view.PreviewView
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
@@ -25,35 +29,35 @@ import androidx.compose.ui.viewinterop.AndroidView
 @Composable
 fun CameraPreview(
     modifier: Modifier = Modifier,
+    cameraController: CameraController,
     analyzer: ImageAnalysis.Analyzer,
     onStatusChanged: (String) -> Unit,
     onError: (String) -> Unit
 ) {
-    val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    val cameraController = remember { CameraController(context) }
-    
-    AndroidView(
-        factory = { ctx ->
-            PreviewView(ctx).apply {
-                scaleType = PreviewView.ScaleType.FIT_CENTER
-            }
-        },
-        modifier = modifier,
-        update = { previewView ->
+    var previewViewRef by remember { mutableStateOf<PreviewView?>(null) }
+
+    LaunchedEffect(cameraController, previewViewRef) {
+        val pv = previewViewRef
+        if (pv != null) {
             cameraController.startCameraPreview(
                 lifecycleOwner = lifecycleOwner,
-                previewView = previewView,
+                previewView = pv,
                 analyzer = analyzer,
                 onStatusChanged = onStatusChanged,
                 onError = onError
             )
         }
-    )
-
-    DisposableEffect(Unit) {
-        onDispose {
-            cameraController.stopCamera()
-        }
     }
+
+    AndroidView(
+        factory = { ctx ->
+            PreviewView(ctx).apply {
+                scaleType = PreviewView.ScaleType.FIT_CENTER
+                previewViewRef = this
+            }
+        },
+        modifier = modifier,
+        update = {}
+    )
 }

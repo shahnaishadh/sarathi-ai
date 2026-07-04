@@ -1,4 +1,4 @@
-﻿package com.pathhelper.ai.validation.ui.components
+package com.pathhelper.ai.validation.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
@@ -62,7 +62,7 @@ fun ValidationDashboard(
 ) {
     if (!BuildConfig.DEBUG && !forceVisible) return
 
-    var expanded by rememberSaveable { mutableStateOf(BuildConfig.DEBUG) }
+    var expanded by rememberSaveable { mutableStateOf(false) }
 
     Column(
         modifier = modifier

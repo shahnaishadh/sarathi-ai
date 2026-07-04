@@ -1,8 +1,10 @@
-﻿package com.pathhelper.ai.guidance.announcement
+package com.pathhelper.ai.guidance.announcement
 
 import android.os.SystemClock
 import android.util.Log
 import com.pathhelper.ai.BuildConfig
+import com.pathhelper.ai.navigation.GuidanceAction
+import com.pathhelper.ai.navigation.ThreatLevel
 import kotlin.math.sqrt
 
 /**
@@ -22,7 +24,7 @@ import kotlin.math.sqrt
  * - speak() is a lambda so the manager has no TTS dependency.
  */
 class AnnouncementManager(
-    private val speak: (String) -> Unit
+    private val speak: (String, GuidanceAction, Int) -> Unit
 ) {
 
     companion
@@ -54,20 +56,49 @@ object {
         text: String,
         priority: AnnouncementPriority,
         currentPosX: Float = 0f,
-        currentPosY: Float = 0f
+        currentPosY: Float = 0f,
+        frameId: Long = 0L,
+        trackerId: Int? = null,
+        action: GuidanceAction? = null,
+        distance: Float? = null,
+        threatLevel: ThreatLevel? = null,
+        rawPriority: Int = 50
     ) {
         if (BuildConfig.DEBUG) Log.d(TAG, "QUEUED: \"$text\" priority=$priority")
         val now = SystemClock.elapsedRealtime()
         state.generated++
 
-        if (priority == AnnouncementPriority.CRITICAL) {
-            doSpeak(text, now, currentPosX, currentPosY)
-            return
-        }
-
         // ── Duplicate suppression ─────────────────────────────────────────────
         if (text == lastSpokenText && (now - lastSpokenTimeMs) < DUPLICATE_WINDOW_MS) {
             suppress(text, "duplicate")
+            Log.i("SARTHI_DEBUG", """
+                [ANNOUNCEMENT_MANAGER]
+                time=${System.currentTimeMillis()}
+                frameId=$frameId
+                trackerId=${trackerId ?: "null"}
+                action=${action ?: "null"}
+                distance=${distance ?: "null"}
+                threatLevel=${threatLevel ?: "null"}
+                suppressed=true
+                text="$text"
+                reason=duplicate
+            """.trimIndent())
+            return
+        }
+
+        if (priority == AnnouncementPriority.CRITICAL) {
+            doSpeak(text, now, currentPosX, currentPosY, action ?: GuidanceAction.STOP, rawPriority)
+            Log.i("SARTHI_DEBUG", """
+                [ANNOUNCEMENT_MANAGER]
+                time=${System.currentTimeMillis()}
+                frameId=$frameId
+                trackerId=${trackerId ?: "null"}
+                action=${action ?: "null"}
+                distance=${distance ?: "null"}
+                threatLevel=${threatLevel ?: "null"}
+                suppressed=false
+                text="$text"
+            """.trimIndent())
             return
         }
 
@@ -81,6 +112,18 @@ object {
                 val elapsed = now - lastWarningTimeMs
                 if (belowMovementThreshold && elapsed < WARNING_COOLDOWN_MS) {
                     suppress(text, "WARNING cooldown ${elapsed}ms < ${WARNING_COOLDOWN_MS}ms, moved ${moved}m")
+                    Log.i("SARTHI_DEBUG", """
+                        [ANNOUNCEMENT_MANAGER]
+                        time=${System.currentTimeMillis()}
+                        frameId=$frameId
+                        trackerId=${trackerId ?: "null"}
+                        action=${action ?: "null"}
+                        distance=${distance ?: "null"}
+                        threatLevel=${threatLevel ?: "null"}
+                        suppressed=true
+                        text="$text"
+                        reason=WARNING cooldown
+                    """.trimIndent())
                     return
                 }
                 lastWarningText = text
@@ -90,6 +133,18 @@ object {
                 val elapsed = now - lastInfoTimeMs
                 if (belowMovementThreshold && elapsed < INFO_COOLDOWN_MS) {
                     suppress(text, "INFO cooldown ${elapsed}ms < ${INFO_COOLDOWN_MS}ms, moved ${moved}m")
+                    Log.i("SARTHI_DEBUG", """
+                        [ANNOUNCEMENT_MANAGER]
+                        time=${System.currentTimeMillis()}
+                        frameId=$frameId
+                        trackerId=${trackerId ?: "null"}
+                        action=${action ?: "null"}
+                        distance=${distance ?: "null"}
+                        threatLevel=${threatLevel ?: "null"}
+                        suppressed=true
+                        text="$text"
+                        reason=INFO cooldown
+                    """.trimIndent())
                     return
                 }
                 lastInfoText = text
@@ -98,7 +153,18 @@ object {
             else -> { /* CRITICAL handled above */ }
         }
 
-        doSpeak(text, now, currentPosX, currentPosY)
+        doSpeak(text, now, currentPosX, currentPosY, action ?: GuidanceAction.KEEP_CENTER, rawPriority)
+        Log.i("SARTHI_DEBUG", """
+            [ANNOUNCEMENT_MANAGER]
+            time=${System.currentTimeMillis()}
+            frameId=$frameId
+            trackerId=${trackerId ?: "null"}
+            action=${action ?: "null"}
+            distance=${distance ?: "null"}
+            threatLevel=${threatLevel ?: "null"}
+            suppressed=false
+            text="$text"
+        """.trimIndent())
     }
 
     /** Returns an immutable snapshot of current counters. */
@@ -107,8 +173,8 @@ object {
 
     // ─── Private ──────────────────────────────────────────────────────────────
 
-    private fun doSpeak(text: String, nowMs: Long, x: Float, y: Float) {
-        speak(text)
+    private fun doSpeak(text: String, nowMs: Long, x: Float, y: Float, action: GuidanceAction, rawPriority: Int) {
+        speak(text, action, rawPriority)
         state.spoken++
         lastSpokenText = text
         lastSpokenTimeMs = nowMs

@@ -3,6 +3,7 @@ package com.pathhelper.ai.camera
 import android.content.Context
 import android.location.Location
 import android.os.SystemClock
+import android.util.Log
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import com.pathhelper.ai.onnx.DetectionMetadata
@@ -190,6 +191,7 @@ class FrameAnalyzer(
     ) -> Unit
 ) : ImageAnalysis.Analyzer {
     private var cameraController: CameraController? = null
+    var isSpeakingCallback: (() -> Boolean)? = null
     private var frameCount = 0L
     private var lastFpsTimestamp = 0L
     private var lastFrameTimestamp = 0L
@@ -243,6 +245,10 @@ class FrameAnalyzer(
         gpsRouteEngine = gpsRouteEngine,
         landmarkNavigationEngine = landmarkNavigationEngine
     )
+
+    private var lastPoseX = 0f
+    private var lastPoseY = 0f
+    private var isFirstPose = true
 
     fun setCameraController(controller: CameraController) {
         this.cameraController = controller
@@ -562,6 +568,19 @@ object detection,
                 slamMap = slamResult.first
                 slamMetadata = slamResult.second
 
+                if (isFirstPose) {
+                    lastPoseX = slamPose.positionX
+                    lastPoseY = slamPose.positionY
+                    isFirstPose = false
+                }
+                val distanceMoved = kotlin.math.sqrt(
+                    (slamPose.positionX - lastPoseX) * (slamPose.positionX - lastPoseX) +
+                    (slamPose.positionY - lastPoseY) * (slamPose.positionY - lastPoseY)
+                )
+                lastPoseX = slamPose.positionX
+                lastPoseY = slamPose.positionY
+                Log.i("SARTHI_MOVEMENT", "poseX=${slamPose.positionX} poseY=${slamPose.positionY} distanceMoved=$distanceMoved")
+
                 val preprocessResult = yoloPreprocessor.preprocess(bitmap)
                 val tensor = preprocessResult.first
                 tensorMetadata = preprocessResult.second
@@ -627,7 +646,12 @@ object detection,
                     // Fuse base corridors with object-level threats
                     safeCorridorsList = navigationFusionEngine.fuse(threatPrioritiesList, baseCorridors)
 
-                    val decisionResult = guidanceDecisionEngine.process(threatPrioritiesList, safeCorridorsList)
+                    val decisionResult = guidanceDecisionEngine.process(
+                        threatPrioritiesList,
+                        safeCorridorsList,
+                        frameCount,
+                        isSpeaking = isSpeakingCallback?.invoke() == true
+                    )
                     guidanceDecision = decisionResult.first
                     guidanceMetadata = decisionResult.second
 
@@ -693,7 +717,8 @@ object detection,
                         worldModel = worldModel,
                         navigationContext = navigationContext,
                         routeMemory = routeMemory,
-                        routePlan = routePlan
+                        routePlan = routePlan,
+                        frameId = frameCount
                     )
 
                     landmarkNavigationState = navigationCoordinator.lastLandmarkState ?: landmarkNavigationState
@@ -705,7 +730,11 @@ object detection,
                         navigationContext, 
                         routeMemoryEngine.lastEvents, 
                         landmarkNavigationState,
-                        navigationCoordinator.lastHybridState
+                        navigationCoordinator.lastHybridState,
+                        frameId = frameCount,
+                        isSpeaking = isSpeakingCallback?.invoke() == true,
+                        poseX = slamPose.positionX,
+                        poseY = slamPose.positionY
                     )
                     speechCommand = voiceResult.first
                     voiceMetadata = voiceResult.second
@@ -782,7 +811,7 @@ object detection,
                 // Fuse base corridors with object-level threats
                 safeCorridorsList = navigationFusionEngine.fuse(emptyList(), baseCorridors)
 
-                val decisionResult = guidanceDecisionEngine.process(emptyList(), safeCorridorsList)
+                val decisionResult = guidanceDecisionEngine.process(emptyList(), safeCorridorsList, frameCount)
                 guidanceDecision = decisionResult.first
                 guidanceMetadata = decisionResult.second
 
@@ -854,7 +883,16 @@ object detection,
                 landmarkNavigationState = navigationCoordinator.lastLandmarkState ?: landmarkNavigationState
                 landmarkNavigationMetadata = navigationCoordinator.lastLandmarkMetadata ?: landmarkNavigationMetadata
 
-                val voiceResult = voiceGuidanceEngine.process(guidanceDecision, sceneMemoryEngine.lastEvents, navigationContext, routeMemoryEngine.lastEvents, landmarkNavigationState)
+                val voiceResult = voiceGuidanceEngine.process(
+                    guidanceDecision, 
+                    sceneMemoryEngine.lastEvents, 
+                    navigationContext, 
+                    routeMemoryEngine.lastEvents, 
+                    landmarkNavigationState,
+                    frameId = frameCount,
+                    poseX = slamPose.positionX,
+                    poseY = slamPose.positionY
+                )
                 speechCommand = voiceResult.first
                 voiceMetadata = voiceResult.second
 

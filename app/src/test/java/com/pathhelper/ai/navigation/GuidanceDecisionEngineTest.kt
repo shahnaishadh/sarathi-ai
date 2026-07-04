@@ -87,4 +87,20 @@ class GuidanceDecisionEngineTest {
         val res3 = engine.process(emptyList(), corridors3)
         assertEquals(GuidanceAction.MOVE_LEFT, res3.first.action)
     }
+
+    @Test
+    fun testStopWhileSpeaking() {
+        val engine = GuidanceDecisionEngine()
+        val corridors = listOf(
+            SafeCorridor(HorizontalZone.SHARP_LEFT, CorridorState.SAFE, 0, ThreatLevel.LOW, 2.0f, 100f),
+            SafeCorridor(HorizontalZone.LEFT, CorridorState.SAFE, 0, ThreatLevel.LOW, 2.0f, 100f),
+            SafeCorridor(HorizontalZone.CENTER, CorridorState.SAFE, 0, ThreatLevel.LOW, 2.0f, 100f),
+            SafeCorridor(HorizontalZone.RIGHT, CorridorState.SAFE, 0, ThreatLevel.LOW, 2.0f, 100f),
+            SafeCorridor(HorizontalZone.SHARP_RIGHT, CorridorState.SAFE, 0, ThreatLevel.LOW, 2.0f, 100f)
+        )
+
+        val (decision, _) = engine.process(emptyList(), corridors, isSpeaking = true)
+        assertEquals(GuidanceAction.STOP, decision.action)
+        assertEquals("Speech in progress", decision.reason)
+    }
 }

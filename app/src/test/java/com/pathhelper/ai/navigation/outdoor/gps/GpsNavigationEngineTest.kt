@@ -48,12 +48,12 @@ class GpsNavigationEngineTest {
         val startLoc = TestLocation(37.7700, -122.4100, mockBearing = 0f, mockAccuracy = 5f)
         val activeWaypoint = TestLocation(37.7701, -122.4101)
 
-        // Target bearing is North West (~315 degrees). Heading is 0 (North). Diff is -45 -> Turn left!
+        // Target bearing is North West (~315 degrees). Heading is 0 (North). Diff is -45 -> Sharp left!
         val (state2, metadata2) = engine.navigate(target, startLoc, activeWaypoint, false, 0)
         assertTrue(metadata2.successful)
         assertEquals(NavigationProgress.ROUTE_FOUND, state2.progress)
         assertNotNull(state2.currentInstruction)
-        assertTrue(state2.currentInstruction!!.contains("Turn left", ignoreCase = true))
+        assertTrue(state2.currentInstruction!!.contains("Sharp left", ignoreCase = true))
     }
 
     @Test

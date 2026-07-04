@@ -85,7 +85,7 @@ class VoiceGuidanceEngineTest {
             navigationState = dummyState
         )
         assertNotNull(result.first)
-        assertEquals("Chair ahead about 2 meters. Move slightly left", result.first?.text)
+        assertEquals("Turn slight left", result.first?.text)
     }
 
     @Test
@@ -110,7 +110,7 @@ class VoiceGuidanceEngineTest {
             navigationState = dummyState
         )
         assertNotNull(result.first)
-        assertEquals("Chair ahead about 4 meters.", result.first?.text)
+        assertEquals("Keep center", result.first?.text)
     }
 
     @Test
@@ -137,7 +137,7 @@ class VoiceGuidanceEngineTest {
             navigationState = dummyState
         )
         assertNotNull(result.first)
-        assertEquals("Chair ahead about 2 meters. Move slightly left then continue straight", result.first?.text)
+        assertEquals("Turn slight left then continue straight", result.first?.text)
     }
 
     @Test
@@ -163,7 +163,7 @@ class VoiceGuidanceEngineTest {
             navigationState = dummyState
         )
         assertNotNull(result1.first)
-        assertEquals("Person ahead about 3 meters. Move right", result1.first?.text)
+        assertEquals("Turn slight right", result1.first?.text)
 
         // Second call: same stationary obstacle state => should suppress (return null)
         val result2 = engine.process(
@@ -188,7 +188,7 @@ class VoiceGuidanceEngineTest {
             navigationState = dummyState
         )
         assertNotNull(result3.first)
-        assertEquals("Person ahead about 1 meters. Move right", result3.first?.text)
+        assertEquals("Turn slight right", result3.first?.text)
 
         // Fourth call: new threat ID => should announce
         val newThreatDecision = decision.copy(
@@ -203,6 +203,31 @@ class VoiceGuidanceEngineTest {
             navigationState = dummyState
         )
         assertNotNull(result4.first)
-        assertEquals("Person ahead about 3 meters. Move right", result4.first?.text)
+        assertEquals("Turn slight right", result4.first?.text)
+    }
+
+    @Test
+    fun testSuppressionWhileSpeaking() {
+        val engine = createNavigatingEngine()
+        val decision = GuidanceDecision(
+            action = GuidanceAction.MOVE_RIGHT,
+            reason = "Avoid obstacle via right",
+            selectedCorridor = HorizontalZone.RIGHT,
+            highestThreatId = 1,
+            highestThreatClassName = "Person",
+            highestThreatLevel = ThreatLevel.HIGH,
+            confidence = 0.9f,
+            highestThreatDistance = 3.0f
+        )
+
+        val result = engine.process(
+            decision = decision,
+            memoryEvents = emptyList(),
+            navigationContext = dummyContext,
+            routeEvents = emptyList(),
+            navigationState = dummyState,
+            isSpeaking = true
+        )
+        org.junit.Assert.assertNull(result.first)
     }
 }

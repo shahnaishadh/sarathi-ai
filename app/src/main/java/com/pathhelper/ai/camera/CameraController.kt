@@ -5,10 +5,12 @@ import android.util.Log
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview
+import androidx.camera.core.TorchState
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.Observer
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -25,6 +27,21 @@ class CameraController(private val context: Context) {
     private var cameraProvider: ProcessCameraProvider? = null
     private var analysisExecutor: ExecutorService? = null
     private var camera: androidx.camera.core.Camera? = null
+    private var isCameraActive = false
+
+    private var pendingTorchState: Boolean? = null
+    private var onTorchStateChanged: ((Boolean) -> Unit)? = null
+
+    private val torchObserver = Observer<Int> { state ->
+        val isOn = state == TorchState.ON
+        Log.i("SARTHI_TORCH_CALLBACK", "torchState=${if (isOn) "ON" else "OFF"} timestamp=${System.currentTimeMillis()}")
+        Log.i("SARTHI_TORCH_HARDWARE", "actualTorchVisibleState=${if (isOn) "ON" else "OFF"}")
+        onTorchStateChanged?.invoke(isOn)
+    }
+
+    fun setOnTorchStateChangedListener(listener: (Boolean) -> Unit) {
+        this.onTorchStateChanged = listener
+    }
 
     /**
      * Initializes and starts the camera preview and frame analysis.
@@ -46,6 +63,11 @@ class CameraController(private val context: Context) {
         onStatusChanged: (String) -> Unit,
         onError: (String) -> Unit
     ) {
+        if (isCameraActive) {
+            Log.d("CameraController", "startCameraPreview called, but camera is already active. Ignoring.")
+            return
+        }
+        isCameraActive = true
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
         cameraProviderFuture.addListener({
             try {
@@ -73,12 +95,21 @@ class CameraController(private val context: Context) {
                 cameraProvider?.unbindAll()
 
                 // Bind use cases to camera
-                camera = cameraProvider?.bindToLifecycle(
+                val cam = cameraProvider?.bindToLifecycle(
                     lifecycleOwner,
                     cameraSelector,
                     preview,
                     imageAnalysis
                 )
+                camera = cam
+
+                cam?.cameraInfo?.torchState?.observe(lifecycleOwner, torchObserver)
+
+                // Apply pending torch state if requested before camera was ready
+                pendingTorchState?.let { pending ->
+                    cam?.cameraControl?.enableTorch(pending)
+                    pendingTorchState = null
+                }
 
                 onStatusChanged("Active")
                 Log.d("CameraController", "Camera preview and analysis started successfully.")
@@ -95,7 +126,15 @@ class CameraController(private val context: Context) {
      * @param enabled True to turn the torch on, false to turn it off.
      */
     fun setFlash(enabled: Boolean) {
-        camera?.cameraControl?.enableTorch(enabled)
+        Log.i("SARTHI_TORCH_REQUEST", "requestedState=$enabled timestamp=${System.currentTimeMillis()}")
+        val cam = camera
+        if (cam != null) {
+            cam.cameraControl.enableTorch(enabled)
+            pendingTorchState = null
+        } else {
+            pendingTorchState = enabled
+            Log.d("CameraController", "Camera not bound yet. Storing pending torch state: $enabled")
+        }
     }
 
     /**
@@ -106,5 +145,6 @@ class CameraController(private val context: Context) {
         analysisExecutor?.shutdown()
         analysisExecutor = null
         camera = null
+        isCameraActive = false
     }
 }
