@@ -10,13 +10,14 @@ package com.pathhelper.ai.navigation
 /**
 * Represents the different states or configurations of Guidance Action.
 */
-enum
-class GuidanceAction {
+enum class GuidanceAction {
     KEEP_CENTER,
     MOVE_SLIGHTLY_LEFT,
     MOVE_LEFT,
+    MOVE_SHARP_LEFT,
     MOVE_SLIGHTLY_RIGHT,
     MOVE_RIGHT,
+    MOVE_SHARP_RIGHT,
     WAIT,
     STOP
 }

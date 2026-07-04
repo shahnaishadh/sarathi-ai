@@ -145,7 +145,8 @@ object allocation and reduce garbage
         for (i in 0 until remaining) {
             sum += data[i].toInt() and 0xFF
         }
-        return if (remaining > 0) sum.toFloat() / remaining else 0f
+        // Normalize to 0..100 for consistency across the perception module
+        return if (remaining > 0) (sum.toFloat() / remaining) / 255f * 100f else 0f
     }
 
     private fun yuv420ToNv21(image: ImageProxy): ByteArray {

@@ -339,13 +339,6 @@ object detection,
             val bitmap = conversionResult.first
             val bitmapMetadata = conversionResult.second
 
-            // Low light detection and flash control
-            if (bitmapMetadata.luminance < 20f) {
-                cameraController?.setFlash(true)
-            } else if (bitmapMetadata.luminance > 40f) {
-                cameraController?.setFlash(false)
-            }
-
             var tensorMetadata = TensorMetadata(
                 tensorCreated = false,
                 shape = longArrayOf(1, 3, 640, 640),
@@ -607,7 +600,6 @@ object detection,
                                 val distResult = distanceEstimationEngine.estimate(
                                     relativePositionsList,
                                     finalTracksList,
-                                    scale,
                                     deltaTimeSeconds
                                 )
                                 distanceEstimatesList = distResult.first

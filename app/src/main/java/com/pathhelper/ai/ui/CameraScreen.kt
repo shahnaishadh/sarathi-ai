@@ -366,6 +366,10 @@ fun CameraScreen() {
             analysisStats = stats
             frameMetadata = metadata
             bitmapMetadata = bMeta
+            
+            // Update Torch Controller with current luminance
+            torchController.onFrame(bMeta.luminance, locConfidence.poseConfidence)
+
             tensorMetadata = tMeta
             inferenceMetadata = iMeta
             detectionMetadata = dMeta
@@ -392,7 +396,7 @@ fun CameraScreen() {
                     cmd.priority >= 50 -> AnnouncementPriority.WARNING
                     else -> AnnouncementPriority.INFO
                 }
-                announcementManager.announce(cmd.text, priority, 0f, 0f)
+                announcementManager.announce(cmd.text, priority, slamPose.positionX, slamPose.positionY)
                 lastCommand = cmd.text
             }
             voiceMetadata = voiceStats
@@ -626,13 +630,16 @@ fun CameraScreen() {
                         val origW = track.width / letterboxScale
                         val origH = track.height / letterboxScale
 
-                        val scaleX = canvasWidthPx / bitmapWidth
-                        val scaleY = canvasHeightPx / bitmapHeight
+                        val scaleX = canvasWidthPx / bitmapWidth.toFloat()
+                        val scaleY = canvasHeightPx / bitmapHeight.toFloat()
+                        val fitScale = kotlin.math.min(scaleX, scaleY)
+                        val offsetX = (canvasWidthPx - bitmapWidth * fitScale) / 2f
+                        val offsetY = (canvasHeightPx - bitmapHeight * fitScale) / 2f
 
-                        val screenCenterX = origCenterX * scaleX
-                        val screenCenterY = origCenterY * scaleY
-                        val screenW = origW * scaleX
-                        val screenH = origH * scaleY
+                        val screenCenterX = origCenterX * fitScale + offsetX
+                        val screenCenterY = origCenterY * fitScale + offsetY
+                        val screenW = origW * fitScale
+                        val screenH = origH * fitScale
 
                         val positionInfo = relativePositionsList.find { it.trackId == track.id }
                         val zone = positionInfo?.horizontalZone
@@ -680,6 +687,8 @@ fun CameraScreen() {
                                     HorizontalZone.CENTER -> 0
                                     HorizontalZone.LEFT -> 1
                                     HorizontalZone.RIGHT -> 2
+                                    HorizontalZone.SHARP_LEFT -> 3
+                                    HorizontalZone.SHARP_RIGHT -> 4
                                 }
                             }
                     ).firstOrNull()?.horizontalZone ?: HorizontalZone.CENTER
@@ -725,12 +734,16 @@ fun CameraScreen() {
                         GuidanceAction.MOVE_SLIGHTLY_LEFT -> Color.Cyan
                         GuidanceAction.MOVE_RIGHT -> Color.Cyan
                         GuidanceAction.MOVE_SLIGHTLY_RIGHT -> Color.Cyan
+                        GuidanceAction.MOVE_SHARP_LEFT -> Color.Cyan
+                        GuidanceAction.MOVE_SHARP_RIGHT -> Color.Cyan
                     }
                     val actionText = when (dec.action) {
                         GuidanceAction.MOVE_LEFT -> "MOVE LEFT"
                         GuidanceAction.MOVE_SLIGHTLY_LEFT -> "SLIGHTLY LEFT"
                         GuidanceAction.MOVE_RIGHT -> "MOVE RIGHT"
                         GuidanceAction.MOVE_SLIGHTLY_RIGHT -> "SLIGHTLY RIGHT"
+                        GuidanceAction.MOVE_SHARP_LEFT -> "SHARP LEFT"
+                        GuidanceAction.MOVE_SHARP_RIGHT -> "SHARP RIGHT"
                         GuidanceAction.KEEP_CENTER -> "KEEP CENTER"
                         GuidanceAction.STOP -> "STOP"
                         GuidanceAction.WAIT -> "WAIT"

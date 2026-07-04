@@ -62,15 +62,19 @@ class ObstaclePrioritizationEngine {
                 // Map HorizontalZone based on relative center position
                 val normX = track.centerX / 640.0f
                 val horizontalZone = when {
-                    normX < 0.3333f -> HorizontalZone.LEFT
-                    normX < 0.6666f -> HorizontalZone.CENTER
-                    else -> HorizontalZone.RIGHT
+                    normX < 0.15f -> HorizontalZone.SHARP_LEFT
+                    normX < 0.35f -> HorizontalZone.LEFT
+                    normX < 0.65f -> HorizontalZone.CENTER
+                    normX < 0.85f -> HorizontalZone.RIGHT
+                    else -> HorizontalZone.SHARP_RIGHT
                 }
 
                 val positionWeight = when (horizontalZone) {
                     HorizontalZone.CENTER -> 30f
                     HorizontalZone.LEFT -> 10f
                     HorizontalZone.RIGHT -> 10f
+                    HorizontalZone.SHARP_LEFT -> 5f
+                    HorizontalZone.SHARP_RIGHT -> 5f
                 }
 
                 //val rawScore = riskWeight + distanceWeight + positionWeight

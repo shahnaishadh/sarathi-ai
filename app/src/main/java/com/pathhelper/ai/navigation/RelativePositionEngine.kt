@@ -54,12 +54,14 @@ class RelativePositionEngine {
                     continue
                 }
 
-                // Horizontal zoning classification
+                // Horizontal zoning classification (5-zone granularity for better precision)
                 val normX = track.centerX / screenWidth
                 val horizontalZone = when {
-                    normX < 0.3333f -> HorizontalZone.LEFT
-                    normX < 0.6666f -> HorizontalZone.CENTER
-                    else -> HorizontalZone.RIGHT
+                    normX < 0.15f -> HorizontalZone.SHARP_LEFT
+                    normX < 0.35f -> HorizontalZone.LEFT
+                    normX < 0.65f -> HorizontalZone.CENTER
+                    normX < 0.85f -> HorizontalZone.RIGHT
+                    else -> HorizontalZone.SHARP_RIGHT
                 }
 
                 // Vertical zoning classification

@@ -10,9 +10,10 @@ package com.pathhelper.ai.navigation
 /**
 * Represents the different states or configurations of Horizontal Zone.
 */
-enum
-class HorizontalZone {
+enum class HorizontalZone {
+    SHARP_LEFT,
     LEFT,
     CENTER,
-    RIGHT
+    RIGHT,
+    SHARP_RIGHT
 }

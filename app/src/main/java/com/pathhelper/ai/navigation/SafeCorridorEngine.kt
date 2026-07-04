@@ -24,17 +24,21 @@ class SafeCorridorEngine {
     fun process(tracks: List<Track>): Pair<List<SafeCorridor>, CorridorMetadata> {
         val startTime = SystemClock.elapsedRealtime()
         
-        // Initialize scores for 3 zones
+        // Initialize scores for 5 zones
         val zoneScores = mutableMapOf(
+            HorizontalZone.SHARP_LEFT to 100f,
             HorizontalZone.LEFT to 100f,
             HorizontalZone.CENTER to 100f,
-            HorizontalZone.RIGHT to 100f
+            HorizontalZone.RIGHT to 100f,
+            HorizontalZone.SHARP_RIGHT to 100f
         )
         
         val zoneHighestThreat = mutableMapOf(
+            HorizontalZone.SHARP_LEFT to ThreatLevel.LOW,
             HorizontalZone.LEFT to ThreatLevel.LOW,
             HorizontalZone.CENTER to ThreatLevel.LOW,
-            HorizontalZone.RIGHT to ThreatLevel.LOW
+            HorizontalZone.RIGHT to ThreatLevel.LOW,
+            HorizontalZone.SHARP_RIGHT to ThreatLevel.LOW
         )
 
         for (track in tracks) {
@@ -43,11 +47,13 @@ class SafeCorridorEngine {
             val right = (track.centerX + (track.width / 2)) / 640f
             val dist = track.distanceMeters
             
-            // Define Zone Boundaries
+            // Define 5 Zone Boundaries
             val zones = listOf(
-                Triple(HorizontalZone.LEFT, 0.0f, 0.33f),
-                Triple(HorizontalZone.CENTER, 0.33f, 0.66f),
-                Triple(HorizontalZone.RIGHT, 0.66f, 1.0f)
+                Triple(HorizontalZone.SHARP_LEFT, 0.0f, 0.15f),
+                Triple(HorizontalZone.LEFT, 0.15f, 0.35f),
+                Triple(HorizontalZone.CENTER, 0.35f, 0.65f),
+                Triple(HorizontalZone.RIGHT, 0.65f, 0.85f),
+                Triple(HorizontalZone.SHARP_RIGHT, 0.85f, 1.0f)
             )
 
             for ((zone, zStart, zEnd) in zones) {
@@ -75,6 +81,67 @@ class SafeCorridorEngine {
                     if (track.threatLevel.ordinal > zoneHighestThreat[zone]!!.ordinal) {
                         zoneHighestThreat[zone] = track.threatLevel
                     }
+                }
+            }
+        }
+
+        // 2. Override scores for zones where a safe traversable gap exists between obstacles
+        val zones = listOf(
+            Triple(HorizontalZone.SHARP_LEFT, 0.0f, 0.15f),
+            Triple(HorizontalZone.LEFT, 0.15f, 0.35f),
+            Triple(HorizontalZone.CENTER, 0.35f, 0.65f),
+            Triple(HorizontalZone.RIGHT, 0.65f, 0.85f),
+            Triple(HorizontalZone.SHARP_RIGHT, 0.85f, 1.0f)
+        )
+
+        for ((zone, zStart, zEnd) in zones) {
+            // Find all close obstacles inside or overlapping this zone
+            val closeTracksInZone = tracks.filter { track ->
+                val trackLeft = (track.centerX - (track.width / 2)) / 640f
+                val trackRight = (track.centerX + (track.width / 2)) / 640f
+                track.distanceMeters < 3.5f && max(trackLeft, zStart) < min(trackRight, zEnd)
+            }
+
+            if (closeTracksInZone.isNotEmpty()) {
+                val intervals = closeTracksInZone.map { track ->
+                    val trackLeft = (track.centerX - (track.width / 2)) / 640f
+                    val trackRight = (track.centerX + (track.width / 2)) / 640f
+                    Pair(max(trackLeft, zStart), min(trackRight, zEnd))
+                }.sortedBy { it.first }
+
+                val merged = mutableListOf<Pair<Float, Float>>()
+                for (interval in intervals) {
+                    if (merged.isEmpty() || merged.last().second < interval.first) {
+                        merged.add(interval)
+                    } else {
+                        val last = merged.removeAt(merged.size - 1)
+                        merged.add(Pair(last.first, max(last.second, interval.second)))
+                    }
+                }
+
+                var currentStart = zStart
+                var maxGapWidth = 0f
+                for (blocked in merged) {
+                    if (blocked.first > currentStart) {
+                        val gap = blocked.first - currentStart
+                        if (gap > maxGapWidth) {
+                            maxGapWidth = gap
+                        }
+                    }
+                    currentStart = max(currentStart, blocked.second)
+                }
+                if (zEnd > currentStart) {
+                    val gap = zEnd - currentStart
+                    if (gap > maxGapWidth) {
+                        maxGapWidth = gap
+                    }
+                }
+
+                val nearestDist = closeTracksInZone.minOf { it.distanceMeters }
+                // If there's a continuous gap of at least 12% screen width, and the nearest obstacle is >= 1.0m away:
+                if (maxGapWidth >= 0.12f && nearestDist >= 1.0f) {
+                    // Mark as safe by setting score to at least 70f
+                    zoneScores[zone] = max(70f, zoneScores[zone] ?: 0f)
                 }
             }
         }

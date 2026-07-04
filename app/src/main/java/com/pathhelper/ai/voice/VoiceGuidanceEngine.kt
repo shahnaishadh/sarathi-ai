@@ -41,6 +41,9 @@ class VoiceGuidanceEngine {
     private var lastSpokenAction: GuidanceAction? = null
     private var lastSpokenText: String? = null
     private var lastSpokenTimestamp: Long = 0L
+    private var lastSpokenThreatId: Int? = null
+    private var lastSpokenDistance: Float? = null
+    private var lastSpokenThreatLevel: com.pathhelper.ai.navigation.ThreatLevel? = null
 
     private var lastNavigationProgress: NavigationProgress? = null
     private var lastStepInstruction: String? = null
@@ -194,8 +197,10 @@ class VoiceGuidanceEngine {
             val guidanceText = when (decision.action) {
                 GuidanceAction.MOVE_LEFT -> "Move left"
                 GuidanceAction.MOVE_SLIGHTLY_LEFT -> "Move slightly left"
+                GuidanceAction.MOVE_SHARP_LEFT -> "Sharp left"
                 GuidanceAction.MOVE_RIGHT -> "Move right"
                 GuidanceAction.MOVE_SLIGHTLY_RIGHT -> "Move slightly right"
+                GuidanceAction.MOVE_SHARP_RIGHT -> "Sharp right"
                 GuidanceAction.KEEP_CENTER -> "Keep center"
                 GuidanceAction.WAIT -> "Path blocked. Please wait"
                 else -> ""
@@ -222,9 +227,10 @@ class VoiceGuidanceEngine {
             }
 
             val priority = when (decision.action) {
+                GuidanceAction.MOVE_SHARP_LEFT, GuidanceAction.MOVE_SHARP_RIGHT -> 90
                 GuidanceAction.MOVE_LEFT, GuidanceAction.MOVE_RIGHT -> 80
-                GuidanceAction.MOVE_SLIGHTLY_LEFT, GuidanceAction.MOVE_SLIGHTLY_RIGHT -> 60
                 GuidanceAction.WAIT -> 70
+                GuidanceAction.MOVE_SLIGHTLY_LEFT, GuidanceAction.MOVE_SLIGHTLY_RIGHT -> 60
                 else -> 40
             }
 
@@ -235,11 +241,28 @@ class VoiceGuidanceEngine {
 
             val isSameAction = decision.action == lastSpokenAction
             val isSameText = text == lastSpokenText
-            val timeElapsed = currentTime - lastSpokenTimestamp
+            val isSameThreat = decision.highestThreatId != null && decision.highestThreatId == lastSpokenThreatId
+            val isSameLevel = decision.highestThreatLevel == lastSpokenThreatLevel
             
-            // Aggressive suppression for steady-state instructions
-            val cooldown = if (priority <= 40) 10000L else 3000L
-            val shouldSuppress = isSameAction && isSameText && timeElapsed < cooldown
+            // Distance delta suppression (prevent jitter between e.g. 2m and 3m)
+            val distanceDelta = if (decision.highestThreatDistance != null && lastSpokenDistance != null) {
+                kotlin.math.abs(decision.highestThreatDistance - lastSpokenDistance!!)
+            } else {
+                Float.MAX_VALUE
+            }
+            val isDistanceUnchanged = distanceDelta < 1.5f
+
+            val shouldSuppress = if (decision.action == GuidanceAction.STOP) {
+                // Keep safety-critical repeating for STOP action (10-second repeating cooldown)
+                val isStopEntry = lastSpokenAction != GuidanceAction.STOP
+                val timeSinceLastStop = currentTime - lastSpokenTimestamp
+                !(isStopEntry || (timeSinceLastStop > 10000L))
+            } else {
+                // State-based suppression: suppress if threat state, action, level, and distance are unchanged
+                (isSameAction && isSameText && isSameThreat && isSameLevel && isDistanceUnchanged) ||
+                // Or if there is no threat, and the guidance action hasn't changed (avoid repeating standard info like KEEP_CENTER)
+                (decision.highestThreatId == null && lastSpokenThreatId == null && isSameAction)
+            }
 
             if (shouldSuppress) {
                 suppressedCount++
@@ -251,6 +274,9 @@ class VoiceGuidanceEngine {
             lastSpokenAction = decision.action
             lastSpokenText = text
             lastSpokenTimestamp = currentTime
+            lastSpokenThreatId = decision.highestThreatId
+            lastSpokenDistance = decision.highestThreatDistance
+            lastSpokenThreatLevel = decision.highestThreatLevel
 
             val command = SpeechCommand(
                 text = text,

@@ -139,4 +139,70 @@ class VoiceGuidanceEngineTest {
         assertNotNull(result.first)
         assertEquals("Chair ahead about 2 meters. Move slightly left then continue straight", result.first?.text)
     }
+
+    @Test
+    fun testStateBasedSuppression_StationaryObstacle() {
+        val engine = createNavigatingEngine()
+        val decision = GuidanceDecision(
+            action = GuidanceAction.MOVE_RIGHT,
+            reason = "Avoid obstacle via right",
+            selectedCorridor = HorizontalZone.RIGHT,
+            highestThreatId = 1,
+            highestThreatClassName = "Person",
+            highestThreatLevel = ThreatLevel.HIGH,
+            confidence = 0.9f,
+            highestThreatDistance = 3.0f
+        )
+
+        // First call: should announce
+        val result1 = engine.process(
+            decision = decision,
+            memoryEvents = emptyList(),
+            navigationContext = dummyContext,
+            routeEvents = emptyList(),
+            navigationState = dummyState
+        )
+        assertNotNull(result1.first)
+        assertEquals("Person ahead about 3 meters. Move right", result1.first?.text)
+
+        // Second call: same stationary obstacle state => should suppress (return null)
+        val result2 = engine.process(
+            decision = decision,
+            memoryEvents = emptyList(),
+            navigationContext = dummyContext,
+            routeEvents = emptyList(),
+            navigationState = dummyState
+        )
+        org.junit.Assert.assertNull(result2.first)
+
+        // Third call: same threat ID but distance changes significantly (from 3.0m to 1.0m) => should announce
+        val closeDecision = decision.copy(
+            highestThreatDistance = 1.0f,
+            highestThreatLevel = ThreatLevel.CRITICAL
+        )
+        val result3 = engine.process(
+            decision = closeDecision,
+            memoryEvents = emptyList(),
+            navigationContext = dummyContext,
+            routeEvents = emptyList(),
+            navigationState = dummyState
+        )
+        assertNotNull(result3.first)
+        assertEquals("Person ahead about 1 meters. Move right", result3.first?.text)
+
+        // Fourth call: new threat ID => should announce
+        val newThreatDecision = decision.copy(
+            highestThreatId = 2,
+            highestThreatDistance = 3.0f
+        )
+        val result4 = engine.process(
+            decision = newThreatDecision,
+            memoryEvents = emptyList(),
+            navigationContext = dummyContext,
+            routeEvents = emptyList(),
+            navigationState = dummyState
+        )
+        assertNotNull(result4.first)
+        assertEquals("Person ahead about 3 meters. Move right", result4.first?.text)
+    }
 }

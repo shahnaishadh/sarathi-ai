@@ -66,14 +66,18 @@ class WorldModelEngine {
                     val z2 = l2.horizontalZone
                     if (z1 != z2) {
                         val val1 = when (z1) {
-                            HorizontalZone.LEFT -> 0
-                            HorizontalZone.CENTER -> 1
-                            HorizontalZone.RIGHT -> 2
+                            HorizontalZone.SHARP_LEFT -> 0
+                            HorizontalZone.LEFT -> 1
+                            HorizontalZone.CENTER -> 2
+                            HorizontalZone.RIGHT -> 3
+                            HorizontalZone.SHARP_RIGHT -> 4
                         }
                         val val2 = when (z2) {
-                            HorizontalZone.LEFT -> 0
-                            HorizontalZone.CENTER -> 1
-                            HorizontalZone.RIGHT -> 2
+                            HorizontalZone.SHARP_LEFT -> 0
+                            HorizontalZone.LEFT -> 1
+                            HorizontalZone.CENTER -> 2
+                            HorizontalZone.RIGHT -> 3
+                            HorizontalZone.SHARP_RIGHT -> 4
                         }
                         if (val1 < val2) {
                             relationsList.add(WorldRelationship(l1.id, l2.id, LandmarkRelation.LEFT_OF))

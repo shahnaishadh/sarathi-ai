@@ -29,8 +29,10 @@ class HapticGuidanceEngine {
         try {
             val pattern = when (decision.action) {
                 GuidanceAction.MOVE_LEFT -> HapticPattern.LEFT
+                GuidanceAction.MOVE_SHARP_LEFT -> HapticPattern.LEFT
                 GuidanceAction.MOVE_SLIGHTLY_LEFT -> HapticPattern.SLIGHTLY_LEFT
                 GuidanceAction.MOVE_RIGHT -> HapticPattern.RIGHT
+                GuidanceAction.MOVE_SHARP_RIGHT -> HapticPattern.RIGHT
                 GuidanceAction.MOVE_SLIGHTLY_RIGHT -> HapticPattern.SLIGHTLY_RIGHT
                 GuidanceAction.KEEP_CENTER -> HapticPattern.CENTER
                 GuidanceAction.STOP -> HapticPattern.STOP
@@ -40,6 +42,8 @@ class HapticGuidanceEngine {
             val priority = when (decision.action) {
                 GuidanceAction.STOP -> 100
                 GuidanceAction.WAIT -> 80
+                GuidanceAction.MOVE_SHARP_LEFT -> 70
+                GuidanceAction.MOVE_SHARP_RIGHT -> 70
                 GuidanceAction.MOVE_LEFT -> 60
                 GuidanceAction.MOVE_RIGHT -> 60
                 GuidanceAction.MOVE_SLIGHTLY_LEFT -> 50
