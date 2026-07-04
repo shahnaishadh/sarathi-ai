@@ -7,7 +7,7 @@ import com.pathhelper.ai.navigation.common.contracts.RouteProvider
 *
 * Explain:
 * * Purpose of the component: Manages state and calculations for Routing Location.
-* * Role within the Sarathi architecture: Part of the core module supporting the Sarathi AI mobility platform.
+* * Role within the Sarthi architecture: Part of the core module supporting the Sarthi AI mobility platform.
 * * Major inputs and outputs: Refer to member methods for input/output definitions.
 */
 class RoutingLocation(private val lat: Double, private val lng: Double) : Location("osm") {
@@ -19,7 +19,7 @@ class RoutingLocation(private val lat: Double, private val lng: Double) : Locati
 *
 * Explain:
 * * Purpose of the component: Manages state and calculations for Open Street Map Route Provider.
-* * Role within the Sarathi architecture: Part of the core module supporting the Sarathi AI mobility platform.
+* * Role within the Sarthi architecture: Part of the core module supporting the Sarthi AI mobility platform.
 * * Major inputs and outputs: Refer to member methods for input/output definitions.
 */
 class OpenStreetMapRouteProvider : RouteProvider {

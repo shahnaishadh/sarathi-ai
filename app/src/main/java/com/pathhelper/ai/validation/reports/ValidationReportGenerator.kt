@@ -13,7 +13,7 @@ import java.util.Locale
  *
  * Explain:
  * * Purpose of the component: Summarizes session summary, performance (FPS/latencies), localization status, system status (memory/battery/temp), lighting conditions, announcement effectiveness, and exit criteria validation.
- * * Role within the Sarathi architecture: Provides post-session diagnostic reports to verify build quality and execution stats.
+ * * Role within the Sarthi architecture: Provides post-session diagnostic reports to verify build quality and execution stats.
  * * Major inputs and outputs: Inputs a [ValidationSession] and its recorded metrics; outputs a structured text file in external logs storage.
  */
 class ValidationReportGenerator(private val context: Context) {
@@ -97,7 +97,7 @@ object {
 
         return buildString {
             appendLine("═══════════════════════════════════════════════════════")
-            appendLine(" Sarathi AI – Validation Report")
+            appendLine(" Sarthi AI – Validation Report")
             appendLine("═══════════════════════════════════════════════════════")
             appendLine()
             appendLine("── Session Summary ──────────────────────────────────")

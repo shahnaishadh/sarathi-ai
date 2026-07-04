@@ -1,14 +1,14 @@
-# Sarathi: An Offline AI Mobility Agent for the Visually Impaired
+# Sarthi: An Offline AI Mobility Agent for the Visually Impaired
 
-![Sarathi Agent](docs/images/Sarathi_AIAgent.png)
+![Sarthi Agent](docs/images/Sarthi_AIAgent.png)
 
 ## Transforming real-time perception into actionable guidance through an agentic reasoning pipeline running entirely on an Android device
 
 ### Overview
 
-Sarathi is an offline AI mobility agent designed to help visually impaired individuals navigate their surroundings more safely and independently using a standard Android smartphone.
+Sarthi is an offline AI mobility agent designed to help visually impaired individuals navigate their surroundings more safely and independently using a standard Android smartphone.
 
-Unlike traditional computer vision applications that stop at object detection, Sarathi transforms perception into actionable guidance through a multi-stage agentic reasoning pipeline. The system continuously observes the environment, identifies obstacles, estimates proximity, prioritizes threats, analyzes safe movement corridors, and generates real-time voice and haptic guidance.
+Unlike traditional computer vision applications that stop at object detection, Sarthi transforms perception into actionable guidance through a multi-stage agentic reasoning pipeline. The system continuously observes the environment, identifies obstacles, estimates proximity, prioritizes threats, analyzes safe movement corridors, and generates real-time voice and haptic guidance.
 
 The entire solution runs locally on-device using Android and ONNX Runtime, ensuring low latency, privacy, and operation without internet connectivity.
 
@@ -20,7 +20,7 @@ Millions of visually impaired individuals rely on white canes, guide dogs, or hu
 
 Many AI-based solutions depend on cloud processing, specialized hardware, or expensive wearable devices.
 
-Sarathi explores how a standard Android smartphone can function as an intelligent mobility companion capable of:
+Sarthi explores how a standard Android smartphone can function as an intelligent mobility companion capable of:
 
 * Understanding the environment
 * Identifying potential hazards
@@ -31,9 +31,9 @@ all without requiring cloud connectivity.
 
 ---
 
-## Why Sarathi is an AI Agent
+## Why Sarthi is an AI Agent
 
-Sarathi follows an agentic workflow:
+Sarthi follows an agentic workflow:
 
 ```text
 Observe
@@ -71,7 +71,7 @@ Observe
 * Haptic feedback
 * Context-aware announcements
 
-Instead of merely detecting objects, Sarathi determines which obstacles are most important and generates actionable instructions for the user.
+Instead of merely detecting objects, Sarthi determines which obstacles are most important and generates actionable instructions for the user.
 
 ---
 
@@ -206,7 +206,7 @@ Planned enhancements include:
 
 ## Model Setup
 
-Sarathi uses the YOLOv8n ONNX model for on-device object detection.
+Sarthi uses the YOLOv8n ONNX model for on-device object detection.
 
 To keep the repository lightweight, the model file is not included in source control.
 
@@ -221,7 +221,7 @@ app/src/main/assets/models/yolov8n.onnx
 Expected model path:
 
 ```text
-sarathi-ai/
+Sarathi-ai/
 └── app/
     └── src/
         └── main/
@@ -258,8 +258,8 @@ After placing the model in the assets directory, rebuild the application.
 ### Build
 
 ```bash
-git clone https://github.com/<your-username>/sarathi-ai.git
-cd sarathi-ai
+git clone https://github.com/<your-username>/Sarathi-ai.git
+cd Sarathi-ai
 ```
 
 Open the project in Android Studio and run:
@@ -284,13 +284,13 @@ YouTube Demo:
 
 * ![Detection overlay](docs/images/screenshot_detection.jpg)
 * ![Detection Dashboard](docs/images/screenshot_dashboard.jpg)
-* ![Sarathi Architecture](docs/images/Sarathi_Architecture.png)
+* ![Sarthi Architecture](docs/images/Sarthi_Architecture.png)
 
 ---
 
 ## Disclaimer
 
-Sarathi is a research and educational prototype developed as part of the AI Agents: Intensive Vibe Coding Capstone Project.
+Sarthi is a research and educational prototype developed as part of the AI Agents: Intensive Vibe Coding Capstone Project.
 
 The application is intended to assist with obstacle awareness and navigation support. It should not be relied upon as the sole mobility aid and is not a replacement for a white cane, guide dog, orientation and mobility training, or professional assistance.
 

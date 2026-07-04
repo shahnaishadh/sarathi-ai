@@ -7,7 +7,7 @@ import com.pathhelper.ai.onnx.Detection
 *
 * Explain:
 * * Purpose of the component: Manages state and calculations for Track Manager.
-* * Role within the Sarathi architecture: Part of the core module supporting the Sarathi AI mobility platform.
+* * Role within the Sarthi architecture: Part of the core module supporting the Sarthi AI mobility platform.
 * * Major inputs and outputs: Refer to member methods for input/output definitions.
 */
 class TrackManager {

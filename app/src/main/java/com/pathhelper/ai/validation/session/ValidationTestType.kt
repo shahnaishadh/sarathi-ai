@@ -1,11 +1,11 @@
 package com.pathhelper.ai.validation.session
 
 /**
- * Enumeration of all physical validation tests defined in the Sarathi test suite.
+ * Enumeration of all physical validation tests defined in the Sarthi test suite.
  *
  * Explain:
  * * Purpose of the component: Specifies the different types of validation tests supported by the system.
- * * Role within the Sarathi architecture: Serves as the configuration definition for active validation sessions and CSV output naming.
+ * * Role within the Sarthi architecture: Serves as the configuration definition for active validation sessions and CSV output naming.
  * * Major inputs and outputs: Not applicable (enumeration of test modes).
  */
 enum

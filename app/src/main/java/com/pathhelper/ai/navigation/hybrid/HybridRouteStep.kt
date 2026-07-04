@@ -5,7 +5,7 @@ package com.pathhelper.ai.navigation.hybrid
  *
  * Explain:
  * * Purpose of the component: Represents a single step in a hybrid indoor/outdoor navigation route.
- * * Role within the Sarathi architecture: Serves as the data model for routing engines to convey step instructions.
+ * * Role within the Sarthi architecture: Serves as the data model for routing engines to convey step instructions.
  * * Major inputs and outputs: Not applicable.
  */
 sealed interface HybridRouteStep {

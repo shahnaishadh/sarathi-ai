@@ -1,8 +1,6 @@
 package com.pathhelper.ai.voice
 
 import android.os.SystemClock
-import android.util.Log
-import com.pathhelper.ai.BuildConfig
 import com.pathhelper.ai.navigation.GuidanceAction
 import com.pathhelper.ai.navigation.GuidanceDecision
 import com.pathhelper.ai.navigation.HorizontalZone
@@ -23,10 +21,9 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 /**
-* Represents the different states or configurations of Sarathi State.
+* Represents the different states or configurations of Sarthi State.
 */
-enum
-class SarathiState {
+enum class SarthiState {
     INITIALIZING,
     WELCOME,
     READY,
@@ -37,7 +34,7 @@ class SarathiState {
 *
 * Explain:
 * * Purpose of the component: Manages state and calculations for Voice Guidance Engine.
-* * Role within the Sarathi architecture: Part of the core module supporting the Sarathi AI mobility platform.
+* * Role within the Sarthi architecture: Part of the core module supporting the Sarthi AI mobility platform.
 * * Major inputs and outputs: Refer to member methods for input/output definitions.
 */
 class VoiceGuidanceEngine {
@@ -53,8 +50,8 @@ class VoiceGuidanceEngine {
     private var generatedCount = 0
     private var suppressedCount = 0
 
-    // Sarathi Assistive UX States
-    private var sarathiState = SarathiState.INITIALIZING
+    // Sarthi Assistive UX States
+    private var sarthiState = SarthiState.INITIALIZING
     private var welcomeStartedAt = 0L
     private val WELCOME_HOLD_DURATION = 8000L // 8 seconds for the full welcome sequence
 
@@ -125,8 +122,8 @@ class VoiceGuidanceEngine {
                 lastSpokenText = stopText
                 lastSpokenTimestamp = currentTime
 
-                if (sarathiState == SarathiState.WELCOME || sarathiState == SarathiState.READY) {
-                    sarathiState = SarathiState.NAVIGATING
+                if (sarthiState == SarthiState.WELCOME || sarthiState == SarthiState.READY) {
+                    sarthiState = SarthiState.NAVIGATING
                 }
 
                 val command = SpeechCommand(
@@ -141,17 +138,17 @@ class VoiceGuidanceEngine {
             }
 
             // =====================================================
-            // Sarathi Startup Experience Logic
+            // Sarthi Startup Experience Logic
             // =====================================================
 
-            if (sarathiState == SarathiState.INITIALIZING) {
-                sarathiState = SarathiState.WELCOME
+            if (sarthiState == SarthiState.INITIALIZING) {
+                sarthiState = SarthiState.WELCOME
                 welcomeStartedAt = currentTime
                 
                 val timeFormat = SimpleDateFormat("h:mm a", Locale.US)
                 val currentTimeString = timeFormat.format(Date())
                 
-                val welcomeText = "Hi, I am Sarathi. The current time is $currentTimeString. " +
+                val welcomeText = "Hi, I am Sarthi. The current time is $currentTimeString. " +
                                  "I am ready to assist you. Please point your camera forward and begin walking."
                 
                 generatedCount++
@@ -169,21 +166,21 @@ class VoiceGuidanceEngine {
                 return Pair(command, VoiceMetadata(generatedCount, suppressedCount, duration, true))
             }
 
-            if (sarathiState == SarathiState.WELCOME) {
+            if (sarthiState == SarthiState.WELCOME) {
                 if (currentTime - welcomeStartedAt > WELCOME_HOLD_DURATION) {
-                    sarathiState = SarathiState.READY
+                    sarthiState = SarthiState.READY
                 } else {
                     val duration = SystemClock.elapsedRealtime() - startTime
                     return Pair(null, VoiceMetadata(generatedCount, suppressedCount + 1, duration, true))
                 }
             }
 
-            if (sarathiState == SarathiState.READY) {
+            if (sarthiState == SarthiState.READY) {
                 val hasActualRoute = navigationState.progress != NavigationProgress.SEARCHING && 
                                     navigationState.progress != NavigationProgress.LOST
                 
                 if (hasActualRoute || decision.action != GuidanceAction.KEEP_CENTER) {
-                    sarathiState = SarathiState.NAVIGATING
+                    sarthiState = SarthiState.NAVIGATING
                 } else {
                     val duration = SystemClock.elapsedRealtime() - startTime
                     return Pair(null, VoiceMetadata(generatedCount, suppressedCount + 1, duration, true))

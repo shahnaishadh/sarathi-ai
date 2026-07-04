@@ -18,7 +18,7 @@ import java.util.Collections
  *
  * Explain:
  * * Purpose of the component: Executes semantic segmentation on raw frames using DeepLabV3+ with MobileNetV2.
- * * Role within the Sarathi architecture: Provides pixel-level classification of obstacles, flooring, and structures for path assessment.
+ * * Role within the Sarthi architecture: Provides pixel-level classification of obstacles, flooring, and structures for path assessment.
  * * Major inputs and outputs: Inputs a camera frame [Bitmap]; outputs a [SegmentationResult] mapping pixel classifications.
  */
 class SegmentationEngine(private val context: Context) : AutoCloseable {

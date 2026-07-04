@@ -6,7 +6,7 @@ package com.pathhelper.ai.camera
  * This
 data class captures the throughput and processing speed of the vision pipeline, 
  * which is used for real-time monitoring and adaptive processing adjustments within 
- * the Sarathi architecture.
+ * the Sarthi architecture.
  */
 data
 class AnalysisStats(

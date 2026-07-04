@@ -8,7 +8,7 @@ import com.pathhelper.ai.navigation.hybrid.entrance.EntranceDecision
 *
 * Explain:
 * * Purpose of the component: Manages state and calculations for Hybrid Navigation Engine.
-* * Role within the Sarathi architecture: Part of the core module supporting the Sarathi AI mobility platform.
+* * Role within the Sarthi architecture: Part of the core module supporting the Sarthi AI mobility platform.
 * * Major inputs and outputs: Refer to member methods for input/output definitions.
 */
 class HybridNavigationEngine {

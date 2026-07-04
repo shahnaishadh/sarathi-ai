@@ -8,7 +8,7 @@ import java.util.BitSet
  *
  * Explain:
  * * Purpose of the component: Temporarily stores segmentation frames to apply temporal smoothing (e.g. noise filter).
- * * Role within the Sarathi architecture: Enhances the stability and robustness of structural visual data before passing to navigation engines.
+ * * Role within the Sarthi architecture: Enhances the stability and robustness of structural visual data before passing to navigation engines.
  * * Major inputs and outputs: Inputs a new [SegmentationResult]; outputs a smoothed or consolidated state estimate.
  */
 /**

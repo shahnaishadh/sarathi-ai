@@ -12,7 +12,7 @@ import kotlin.math.min
  *
  * Explain:
  * * Purpose of the component: Analyzes tracked obstacle positions and distances to score navigation corridors.
- * * Role within the Sarathi architecture: Serves as the local obstacle-avoidance engine to guide safe stepping paths.
+ * * Role within the Sarthi architecture: Serves as the local obstacle-avoidance engine to guide safe stepping paths.
  * * Major inputs and outputs: Inputs a list of [Track] objects representing detected obstacles; outputs a list of [SafeCorridor]s with safety states and metadata.
  */
 class SafeCorridorEngine {

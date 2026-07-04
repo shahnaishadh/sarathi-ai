@@ -125,7 +125,7 @@ interface to receive raw camera frames.
  * - Navigation planning and hybrid outdoor/indoor guidance coordination.
  * - Generation of voice and haptic feedback commands.
  *
- * Role in Sarathi: Acts as the central "brain" of the real-time processing loop, 
+ * Role in Sarthi: Acts as the central "brain" of the real-time processing loop, 
  * fusing multiple streams of AI perception data into actionable guidance for the user.
  */
 class FrameAnalyzer(

@@ -32,9 +32,9 @@ class VoiceGuidanceEngineTest {
 
     private fun createNavigatingEngine(): VoiceGuidanceEngine {
         val engine = VoiceGuidanceEngine()
-        val stateField = VoiceGuidanceEngine::class.java.getDeclaredField("sarathiState")
+        val stateField = VoiceGuidanceEngine::class.java.getDeclaredField("sarthiState")
         stateField.isAccessible = true
-        stateField.set(engine, SarathiState.NAVIGATING)
+        stateField.set(engine, SarthiState.NAVIGATING)
         return engine
     }
 
